@@ -1,8 +1,64 @@
-use leptos::*;
+use std::collections::HashMap;
+
+use leptos::{leptos_dom::logging::console_log, *};
+use leptos_oidc::{Auth, Authenticated, LoginLink, LogoutLink};
 use leptos_router::A;
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[non_exhaustive]
+struct IdToken {
+    name: String,
+    value: serde_json::Value,
+}
 
 #[component]
 pub fn Navbar() -> impl IntoView {
+    let auth = expect_context::<Auth>();
+    let claims = create_memo(move |_| {
+      let id_token = auth.id_token();
+      match id_token {
+        Some(token) => {
+          // return token;
+          let json: Result<IdToken, serde_json::Error> = serde_json::from_str(&token.as_str());
+          let id_token = json.unwrap_or_default();
+          println!("{:?}", id_token);
+          console_log(&id_token.value.to_string());
+          return id_token.name;
+        },
+        None => {
+          return "".to_string()
+        }
+      }
+      
+    });
+
+    let user_name = move || claims.get_untracked();
+    console_log(&"navbar");
+    console_log(&user_name().to_string());
+    // let map: Result<String, serde_json::Value> = serde_json::from_str(&user_name().clone().to_string());
+    // println!("hash map = {:#?}", map);
+
+    // let user_name = Signal::derive(move || {
+    //     auth.decoded_access_token::<IdToken>()
+    //         .get()
+    //         .map(|claims| claims.name.clone())
+    //         .unwrap_or_default()
+    // });
+    // let a_token = auth.access_token();
+
+    // if let Some(t) = a_token {
+    //     console_log(&t)
+    // }
+
+    // if let Some(access_token) = (claims.clone())() {
+    //     let signal_wrap = create_memo(move |_| access_token);
+    //     let user_name = Signal::derive(move || {
+    //       signal_wrap
+    //     });
+    //     console_log(&serde_json::to_string_pretty(&access_token.unwrap()).unwrap());
+    // }
+
     view! {
       <div class="bg-white w-screen">
         <div class="container mx-auto p-3">
@@ -16,11 +72,16 @@ pub fn Navbar() -> impl IntoView {
               <button on:click=move |_| todo!() class="md:ml-2 no-wrap">English</button>
               <button on:click=move |_| todo!() class="md:ml-2 no-wrap">中文</button>
               <button on:click=move |_| todo!() class="md:ml-2 no-wrap">BM</button>
-              // {user && <div class="md:ml-2 text-neutral-500">{user.name}</div>}
-              // {user ?
-              //   <Link href="/api/auth/logout" class="md:ml-2 no-wrap">{t("header_logout", "Logout")}</Link> :
-              //   <Link href="/api/auth/login" class="md:ml-2 no-wrap">{t("header_login", "Login")}</Link>
-              // }
+              <Authenticated>
+                <div class="md:ml-2 text-neutral-500">{move || user_name}</div>
+              </Authenticated>
+              <Authenticated
+                unauthenticated=move || view! {
+                  <LoginLink class="md:ml-2 no-wrap">Login</LoginLink>
+                }
+              >
+                <LogoutLink class="md:ml-2 no-wrap">Logout</LogoutLink>
+              </Authenticated>
             </div>
           </nav>
         </div>
@@ -37,5 +98,4 @@ pub fn Navbar() -> impl IntoView {
         </div>
       </div>
     }
-
 }
